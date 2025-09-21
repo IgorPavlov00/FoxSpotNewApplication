@@ -340,7 +340,6 @@ export default function RegisterScreen() {
             setProfilePicture(pickerResult.assets[0].uri);
         }
     };
-
     const register = async () => {
         if (!firstName || !lastName || !email || !password) {
             showToast("Please fill in all fields", "error");
@@ -355,7 +354,7 @@ export default function RegisterScreen() {
         setIsLoading(true);
 
         try {
-            // 1. Create Supabase Auth user
+            // Create Supabase Auth user - trigger will automatically create users table record
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email,
                 password,
@@ -371,7 +370,8 @@ export default function RegisterScreen() {
             if (authError) throw authError;
             if (!authData.user) throw new Error("User creation failed");
 
-            // 2. Insert into "users" table
+            // ❌ REMOVE THIS ENTIRE BLOCK - Trigger handles it automatically
+            /*
             const { error: insertError } = await supabase.from("users").insert({
                 id: authData.user.id, // must equal auth.uid()
                 first_name: firstName,
@@ -381,6 +381,7 @@ export default function RegisterScreen() {
             });
 
             if (insertError) throw insertError;
+            */
 
             setIsLoading(false);
 
@@ -398,7 +399,6 @@ export default function RegisterScreen() {
             showToast(error.message || "Registration failed.", "error");
         }
     };
-
 
     return (
         <Animated.View
