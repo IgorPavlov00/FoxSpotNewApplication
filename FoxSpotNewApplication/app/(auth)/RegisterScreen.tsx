@@ -16,6 +16,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from "expo-file-system";
 
 const { width } = Dimensions.get('window');
 
@@ -342,39 +343,19 @@ export default function RegisterScreen() {
 
     const register = async () => {
         if (!firstName || !lastName || !email || !password) {
-            // Error shake animation
-            Animated.sequence([
-                Animated.spring(buttonScale, { toValue: 0.98, tension: 300, friction: 10, useNativeDriver: true }),
-                Animated.spring(buttonScale, { toValue: 1.02, tension: 300, friction: 10, useNativeDriver: true }),
-                Animated.spring(buttonScale, { toValue: 1, tension: 300, friction: 10, useNativeDriver: true }),
-            ]).start();
-            showToast('Please fill in all fields', 'error');
+            showToast("Please fill in all fields", "error");
             return;
         }
 
         if (password.length < 6) {
-            // Error shake animation
-            Animated.sequence([
-                Animated.spring(buttonScale, { toValue: 0.98, tension: 300, friction: 10, useNativeDriver: true }),
-                Animated.spring(buttonScale, { toValue: 1.02, tension: 300, friction: 10, useNativeDriver: true }),
-                Animated.spring(buttonScale, { toValue: 1, tension: 300, friction: 10, useNativeDriver: true }),
-            ]).start();
-            showToast('Password must be at least 6 characters long', 'error');
+            showToast("Password must be at least 6 characters long", "error");
             return;
         }
 
         setIsLoading(true);
 
-        // Loading press animation
-        Animated.spring(buttonScale, {
-            toValue: 0.96,
-            tension: 300,
-            friction: 10,
-            useNativeDriver: true,
-        }).start();
-
         try {
-            // Step 1: Create auth user
+            // 1. Create Supabase Auth user
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email,
                 password,
@@ -383,116 +364,42 @@ export default function RegisterScreen() {
                         first_name: firstName,
                         last_name: lastName,
                         full_name: `${firstName} ${lastName}`,
-                    }
-                }
+                    },
+                },
             });
 
-            if (authError) {
-                throw authError;
-            }
+            if (authError) throw authError;
+            if (!authData.user) throw new Error("User creation failed");
 
-            if (!authData.user) {
-                throw new Error('User creation failed');
-            }
+            // 2. Insert into "users" table
+            const { error: insertError } = await supabase.from("users").insert({
+                id: authData.user.id, // must equal auth.uid()
+                first_name: firstName,
+                last_name: lastName,
+                full_name: `${firstName} ${lastName}`,
+                email: email,
+            });
 
-            // Step 2: Upload profile picture if selected
-            let profilePictureUrl = null;
-            if (profilePicture) {
-                try {
-                    const fileExt = profilePicture.split('.').pop();
-                    const fileName = `${authData.user.id}-${Date.now()}.${fileExt}`;
-
-                    const response = await fetch(profilePicture);
-                    const blob = await response.blob();
-
-                    const { data: uploadData, error: uploadError } = await supabase.storage
-                        .from('avatars')
-                        .upload(fileName, blob, {
-                            contentType: `image/${fileExt}`,
-                        });
-
-                    if (!uploadError && uploadData) {
-                        const { data: urlData } = supabase.storage
-                            .from('avatars')
-                            .getPublicUrl(fileName);
-                        profilePictureUrl = urlData.publicUrl;
-                    }
-                } catch (uploadError) {
-                    console.log('Profile picture upload failed:', uploadError);
-                    // Continue without profile picture
-                }
-            }
-
-            // Step 3: Create user record in users table
-            const { error: insertError } = await supabase
-                .from('users')
-                .insert({
-                    id: authData.user.id,
-                    first_name: firstName,
-                    last_name: lastName,
-                    full_name: `${firstName} ${lastName}`,
-                    avatar_url: profilePictureUrl,
-                });
-
-            if (insertError) {
-                console.error('User record creation failed:', insertError);
-                // Optionally delete the auth user if user record creation fails
-                // await supabase.auth.admin.deleteUser(authData.user.id);
-                throw insertError;
-            }
+            if (insertError) throw insertError;
 
             setIsLoading(false);
 
-            // Success animation sequence
-            showToast('Registration successful! Please verify your account in your email', 'success');
+            // ✅ Success toast
+            showToast("🎉 Registration successful! Check your email to confirm.", "success");
 
-            Animated.sequence([
-                Animated.spring(buttonScale, {
-                    toValue: 1.04,
-                    tension: 200,
-                    friction: 6,
-                    useNativeDriver: true,
-                }),
-                Animated.spring(buttonScale, {
-                    toValue: 1,
-                    tension: 300,
-                    friction: 8,
-                    useNativeDriver: true,
-                }),
-                // Fade out everything
-                Animated.parallel([
-                    Animated.timing(containerOpacity, {
-                        toValue: 0,
-                        duration: 400,
-                        easing: Easing.in(Easing.quad),
-                        useNativeDriver: true,
-                    }),
-                    Animated.spring(titleScale, {
-                        toValue: 0.9,
-                        tension: 150,
-                        friction: 8,
-                        useNativeDriver: true,
-                    }),
-                ]),
-            ]).start(() => {
-                router.replace('/(auth)/LoginScreen');
-            });
-
+            // Redirect after short delay
+            setTimeout(() => {
+                router.replace("/(auth)/LoginScreen");
+            }, 1500);
 
         } catch (error) {
             setIsLoading(false);
-            console.error('Registration error:', error);
-
-            // Error bounce animation
-            Animated.sequence([
-                Animated.spring(buttonScale, { toValue: 1.02, tension: 300, friction: 8, useNativeDriver: true }),
-                Animated.spring(buttonScale, { toValue: 0.98, tension: 300, friction: 8, useNativeDriver: true }),
-                Animated.spring(buttonScale, { toValue: 1, tension: 300, friction: 8, useNativeDriver: true }),
-            ]).start();
-
-            showToast(error?.message || 'Registration failed. Please try again.', 'error');
+            console.error("Registration error:", error);
+            showToast(error.message || "Registration failed.", "error");
         }
     };
+
+
     return (
         <Animated.View
             style={[
