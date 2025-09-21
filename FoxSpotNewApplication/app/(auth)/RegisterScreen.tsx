@@ -354,7 +354,44 @@ export default function RegisterScreen() {
         setIsLoading(true);
 
         try {
-            // Create Supabase Auth user - trigger will automatically create users table record
+            let profilePictureUrl = null;
+
+            // 1. Upload profile picture if selected
+            if (profilePicture) {
+                // Generate unique filename
+                const fileExt = profilePicture.split('.').pop();
+                const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+                const filePath = `profile-pictures/${fileName}`;
+
+                // Method 1: Using FormData (Recommended for React Native)
+                const formData = new FormData();
+                formData.append('file', {
+                    uri: profilePicture,
+                    type: `image/${fileExt}`,
+                    name: fileName,
+                });
+
+                // Upload to Supabase Storage using FormData
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('avatars')
+                    .upload(filePath, formData, {
+                        contentType: `image/${fileExt}`,
+                        upsert: false
+                    });
+
+                if (uploadError) {
+                    throw new Error(`Image upload failed: ${uploadError.message}`);
+                }
+
+                // Get public URL
+                const { data: { publicUrl } } = supabase.storage
+                    .from('avatars')
+                    .getPublicUrl(filePath);
+
+                profilePictureUrl = publicUrl;
+            }
+
+            // 2. Create Supabase Auth user with profile picture URL
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email,
                 password,
@@ -363,25 +400,13 @@ export default function RegisterScreen() {
                         first_name: firstName,
                         last_name: lastName,
                         full_name: `${firstName} ${lastName}`,
+                        profile_picture_url: profilePictureUrl,
                     },
                 },
             });
 
             if (authError) throw authError;
             if (!authData.user) throw new Error("User creation failed");
-
-            // ❌ REMOVE THIS ENTIRE BLOCK - Trigger handles it automatically
-            /*
-            const { error: insertError } = await supabase.from("users").insert({
-                id: authData.user.id, // must equal auth.uid()
-                first_name: firstName,
-                last_name: lastName,
-                full_name: `${firstName} ${lastName}`,
-                email: email,
-            });
-
-            if (insertError) throw insertError;
-            */
 
             setIsLoading(false);
 

@@ -86,6 +86,10 @@ export default function ProfileScreen() {
 
             setUser(authData.user);
 
+            // 🔍 Debug logs
+            console.log('User metadata:', authData.user.user_metadata);
+            console.log('Profile picture URL in metadata:', authData.user.user_metadata?.profile_picture_url);
+
             // Get user profile from users table
             const { data: profileData, error: profileError } = await supabase
                 .from('users')
@@ -95,12 +99,11 @@ export default function ProfileScreen() {
 
             if (profileError) {
                 console.error('Failed to fetch user profile:', profileError.message);
-                // Create user profile if it doesn't exist
                 await createUserProfile(authData.user);
             } else if (profileData) {
+                console.log('Profile data from DB:', profileData);
                 setUserProfile(profileData);
             } else {
-                // No profile found, create one
                 console.log('No user profile found, creating one...');
                 await createUserProfile(authData.user);
             }
@@ -120,8 +123,14 @@ export default function ProfileScreen() {
                 full_name: authUser.user_metadata?.full_name ||
                     `${authUser.user_metadata?.first_name || ''} ${authUser.user_metadata?.last_name || ''}`.trim() ||
                     'FoxSpot User',
+                first_name: authUser.user_metadata?.first_name,
+                last_name: authUser.user_metadata?.last_name,
                 username: null,
-                avatar_url: authUser.user_metadata?.avatar_url || null,
+                // ✅ Fix: Check for both profile_picture_url and avatar_url
+                avatar_url: authUser.user_metadata?.profile_picture_url ||
+                    authUser.user_metadata?.avatar_url ||
+                    null,
+                profile_picture_url: authUser.user_metadata?.profile_picture_url || null,
                 role: 'user',
                 created_at: new Date().toISOString(),
             };
@@ -139,8 +148,13 @@ export default function ProfileScreen() {
                     id: authUser.id,
                     email: authUser.email,
                     full_name: authUser.user_metadata?.full_name || 'FoxSpot User',
+                    first_name: authUser.user_metadata?.first_name,
+                    last_name: authUser.user_metadata?.last_name,
                     username: null,
-                    avatar_url: null,
+                    avatar_url: authUser.user_metadata?.profile_picture_url ||
+                        authUser.user_metadata?.avatar_url ||
+                        null,
+                    profile_picture_url: authUser.user_metadata?.profile_picture_url || null,
                     role: 'user',
                     created_at: new Date().toISOString(),
                 });
@@ -155,8 +169,13 @@ export default function ProfileScreen() {
                 id: authUser.id,
                 email: authUser.email,
                 full_name: authUser.user_metadata?.full_name || 'FoxSpot User',
+                first_name: authUser.user_metadata?.first_name,
+                last_name: authUser.user_metadata?.last_name,
                 username: null,
-                avatar_url: null,
+                avatar_url: authUser.user_metadata?.profile_picture_url ||
+                    authUser.user_metadata?.avatar_url ||
+                    null,
+                profile_picture_url: authUser.user_metadata?.profile_picture_url || null,
                 role: 'user',
                 created_at: new Date().toISOString(),
             });
@@ -195,6 +214,7 @@ export default function ProfileScreen() {
         Alert.alert('Edit Profile', 'Edit profile functionality coming soon!');
     };
 
+    // Fix 1: Update the handleUpdateProfilePicture function
     const handleUpdateProfilePicture = async () => {
         try {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -204,8 +224,9 @@ export default function ProfileScreen() {
                 return;
             }
 
+            // ✅ Fix deprecated MediaTypeOptions
             const pickerResult = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                mediaTypes: ['images'], // Fixed: Use array instead of MediaTypeOptions.Images
                 allowsEditing: true,
                 aspect: [1, 1],
                 quality: 0.8,
@@ -222,30 +243,40 @@ export default function ProfileScreen() {
         }
     };
 
+// Fix 2: Remove updated_at column from uploadProfilePicture function
     const uploadProfilePicture = async (imageUri) => {
         try {
             const fileExt = imageUri.split('.').pop();
             const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+            const filePath = `profile-pictures/${fileName}`;
 
             // Delete old avatar if exists
             if (userProfile?.avatar_url) {
                 try {
-                    const oldFileName = userProfile.avatar_url.split('/').pop();
-                    await supabase.storage
-                        .from('avatars')
-                        .remove([oldFileName]);
+                    const urlParts = userProfile.avatar_url.split('/');
+                    const oldFileName = urlParts[urlParts.length - 1];
+                    if (oldFileName && oldFileName.includes(user.id)) {
+                        await supabase.storage
+                            .from('avatars')
+                            .remove([`profile-pictures/${oldFileName}`]);
+                    }
                 } catch (deleteError) {
                     console.log('Failed to delete old avatar (non-critical):', deleteError);
                 }
             }
 
-            // Create form data for upload
-            const response = await fetch(imageUri);
-            const blob = await response.blob();
+            // Use FormData for React Native
+            const formData = new FormData();
+            formData.append('file', {
+                uri: imageUri,
+                type: `image/${fileExt}`,
+                name: fileName,
+            });
 
+            // Upload to Supabase Storage
             const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('avatars')
-                .upload(fileName, blob, {
+                .upload(filePath, formData, {
                     contentType: `image/${fileExt}`,
                     cacheControl: '3600',
                     upsert: false
@@ -258,34 +289,82 @@ export default function ProfileScreen() {
             // Get the public URL
             const { data: urlData } = supabase.storage
                 .from('avatars')
-                .getPublicUrl(fileName);
+                .getPublicUrl(filePath);
 
             if (!urlData.publicUrl) {
                 throw new Error('Failed to get public URL');
             }
 
-            // Update user profile with new avatar URL
-            const { data: updateData, error: updateError } = await supabase
+            // First check if user exists in users table
+            const { data: existingUser, error: checkError } = await supabase
                 .from('users')
-                .update({
-                    avatar_url: urlData.publicUrl,
-                    updated_at: new Date().toISOString()
-                })
+                .select('id')
                 .eq('id', user.id)
-                .select()
                 .single();
 
-            if (updateError) {
-                throw updateError;
+            if (checkError && checkError.code === 'PGRST116') {
+                // User doesn't exist, create the user record first
+                const { data: newUser, error: insertError } = await supabase
+                    .from('users')
+                    .insert({
+                        id: user.id,
+                        email: user.email,
+                        full_name: user.user_metadata?.full_name ||
+                            `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() ||
+                            'FoxSpot User',
+                        first_name: user.user_metadata?.first_name,
+                        last_name: user.user_metadata?.last_name,
+                        avatar_url: urlData.publicUrl,
+                        profile_picture_url: urlData.publicUrl
+                    })
+                    .select()
+                    .single();
+
+                if (insertError) {
+                    throw new Error(`Failed to create user profile: ${insertError.message}`);
+                }
+
+                // Update local state
+                setUserProfile(newUser);
+            } else if (checkError) {
+                throw checkError;
+            } else {
+                // User exists, update the avatar_url
+                const { data: updateData, error: updateError } = await supabase
+                    .from('users')
+                    .update({
+                        avatar_url: urlData.publicUrl,
+                        profile_picture_url: urlData.publicUrl
+                    })
+                    .eq('id', user.id)
+                    .select()
+                    .single();
+
+                if (updateError) {
+                    throw updateError;
+                }
+
+                // Update local state
+                setUserProfile(updateData);
             }
 
-            // Update local state with the returned data
-            setUserProfile(updateData);
             setImageLoadError(false);
-
             Alert.alert('Success', 'Profile picture updated successfully!');
+
         } catch (error) {
             console.error('Upload error:', error);
+
+            // Clean up uploaded file if database update failed
+            if (error.message && !error.message.includes('upload')) {
+                try {
+                    await supabase.storage
+                        .from('avatars')
+                        .remove([filePath]);
+                } catch (cleanupError) {
+                    console.log('Failed to cleanup uploaded file:', cleanupError);
+                }
+            }
+
             Alert.alert(
                 'Upload Failed',
                 error.message || 'Failed to update profile picture. Please try again.'
@@ -403,10 +482,10 @@ export default function ProfileScreen() {
                         ]}
                     >
                         <TouchableOpacity onPress={() => animatePress(avatarScale)}>
-                            {userProfile?.avatar_url && !imageLoadError ? (
+                            {(userProfile?.avatar_url || userProfile?.profile_picture_url) && !imageLoadError ? (
                                 <Image
                                     source={{
-                                        uri: userProfile.avatar_url,
+                                        uri: userProfile.avatar_url || userProfile.profile_picture_url,
                                         cache: 'force-cache'
                                     }}
                                     style={styles.avatar}
