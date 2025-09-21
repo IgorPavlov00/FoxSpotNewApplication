@@ -11,6 +11,7 @@ import {
     Platform,
     StatusBar,
     Alert,
+    RefreshControl,
 } from 'react-native';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -37,6 +38,7 @@ export default function ProfileScreen() {
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
     const avatarScale = useRef(new Animated.Value(0.8)).current;
 
+    // Simple approach: fetch data on mount
     useEffect(() => {
         fetchUserData();
     }, []);
@@ -74,7 +76,9 @@ export default function ProfileScreen() {
 
     const fetchUserData = async () => {
         try {
-            setLoading(true);
+            if (!refreshing) {
+                setLoading(true);
+            }
 
             // Get auth user
             const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -85,10 +89,6 @@ export default function ProfileScreen() {
             }
 
             setUser(authData.user);
-
-            // 🔍 Debug logs
-            console.log('User metadata:', authData.user.user_metadata);
-            console.log('Profile picture URL in metadata:', authData.user.user_metadata?.profile_picture_url);
 
             // Get user profile from users table
             const { data: profileData, error: profileError } = await supabase
@@ -101,7 +101,6 @@ export default function ProfileScreen() {
                 console.error('Failed to fetch user profile:', profileError.message);
                 await createUserProfile(authData.user);
             } else if (profileData) {
-                console.log('Profile data from DB:', profileData);
                 setUserProfile(profileData);
             } else {
                 console.log('No user profile found, creating one...');
@@ -126,7 +125,6 @@ export default function ProfileScreen() {
                 first_name: authUser.user_metadata?.first_name,
                 last_name: authUser.user_metadata?.last_name,
                 username: null,
-                // ✅ Fix: Check for both profile_picture_url and avatar_url
                 avatar_url: authUser.user_metadata?.profile_picture_url ||
                     authUser.user_metadata?.avatar_url ||
                     null,
@@ -143,7 +141,6 @@ export default function ProfileScreen() {
 
             if (error) {
                 console.error('Failed to create user profile:', error.message);
-                // Set a default profile if database creation fails
                 setUserProfile({
                     id: authUser.id,
                     email: authUser.email,
@@ -164,7 +161,6 @@ export default function ProfileScreen() {
             }
         } catch (error) {
             console.error('Error creating user profile:', error);
-            // Fallback to auth user data
             setUserProfile({
                 id: authUser.id,
                 email: authUser.email,
@@ -184,6 +180,7 @@ export default function ProfileScreen() {
 
     const handleRefresh = async () => {
         setRefreshing(true);
+        setImageLoadError(false); // Reset image errors
         await fetchUserData();
     };
 
@@ -209,12 +206,17 @@ export default function ProfileScreen() {
         );
     };
 
-    const handleEditProfile = () => {
+    const handleEditProfile = async () => {
         // Navigate to edit profile screen
-        Alert.alert('Edit Profile', 'Edit profile functionality coming soon!');
+        router.push('/(tabs)/editProfileScreen');
+
+        // Simple refresh approach: set a timeout to refresh when likely returning
+        setTimeout(() => {
+            handleRefresh();
+        }, 3000); // Refresh after 3 seconds (assuming user will be back by then)
     };
 
-    // Fix 1: Update the handleUpdateProfilePicture function
+    // Your existing camera and animation functions remain the same...
     const handleUpdateProfilePicture = async () => {
         try {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -224,9 +226,8 @@ export default function ProfileScreen() {
                 return;
             }
 
-            // ✅ Fix deprecated MediaTypeOptions
             const pickerResult = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'], // Fixed: Use array instead of MediaTypeOptions.Images
+                mediaTypes: ['images'],
                 allowsEditing: true,
                 aspect: [1, 1],
                 quality: 0.8,
@@ -243,14 +244,12 @@ export default function ProfileScreen() {
         }
     };
 
-// Fix 2: Remove updated_at column from uploadProfilePicture function
     const uploadProfilePicture = async (imageUri) => {
         try {
             const fileExt = imageUri.split('.').pop();
             const fileName = `${user.id}-${Date.now()}.${fileExt}`;
             const filePath = `profile-pictures/${fileName}`;
 
-            // Delete old avatar if exists
             if (userProfile?.avatar_url) {
                 try {
                     const urlParts = userProfile.avatar_url.split('/');
@@ -265,7 +264,6 @@ export default function ProfileScreen() {
                 }
             }
 
-            // Use FormData for React Native
             const formData = new FormData();
             formData.append('file', {
                 uri: imageUri,
@@ -273,7 +271,6 @@ export default function ProfileScreen() {
                 name: fileName,
             });
 
-            // Upload to Supabase Storage
             const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('avatars')
                 .upload(filePath, formData, {
@@ -286,7 +283,6 @@ export default function ProfileScreen() {
                 throw uploadError;
             }
 
-            // Get the public URL
             const { data: urlData } = supabase.storage
                 .from('avatars')
                 .getPublicUrl(filePath);
@@ -295,7 +291,6 @@ export default function ProfileScreen() {
                 throw new Error('Failed to get public URL');
             }
 
-            // First check if user exists in users table
             const { data: existingUser, error: checkError } = await supabase
                 .from('users')
                 .select('id')
@@ -303,7 +298,6 @@ export default function ProfileScreen() {
                 .single();
 
             if (checkError && checkError.code === 'PGRST116') {
-                // User doesn't exist, create the user record first
                 const { data: newUser, error: insertError } = await supabase
                     .from('users')
                     .insert({
@@ -324,12 +318,10 @@ export default function ProfileScreen() {
                     throw new Error(`Failed to create user profile: ${insertError.message}`);
                 }
 
-                // Update local state
                 setUserProfile(newUser);
             } else if (checkError) {
                 throw checkError;
             } else {
-                // User exists, update the avatar_url
                 const { data: updateData, error: updateError } = await supabase
                     .from('users')
                     .update({
@@ -344,7 +336,6 @@ export default function ProfileScreen() {
                     throw updateError;
                 }
 
-                // Update local state
                 setUserProfile(updateData);
             }
 
@@ -354,7 +345,6 @@ export default function ProfileScreen() {
         } catch (error) {
             console.error('Upload error:', error);
 
-            // Clean up uploaded file if database update failed
             if (error.message && !error.message.includes('upload')) {
                 try {
                     await supabase.storage
@@ -442,14 +432,13 @@ export default function ProfileScreen() {
                 style={styles.scrollView}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    refreshing ? (
-                        <ActivityIndicator
-                            color="#ff6b00"
-                            style={{ marginTop: 50 }}
-                        />
-                    ) : undefined
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        colors={['#ff6b00']}
+                        tintColor="#ff6b00"
+                    />
                 }
-                onRefresh={handleRefresh}
             >
                 {/* Header Section */}
                 <Animated.View
@@ -486,7 +475,7 @@ export default function ProfileScreen() {
                                 <Image
                                     source={{
                                         uri: userProfile.avatar_url || userProfile.profile_picture_url,
-                                        cache: 'force-cache'
+                                        cache: 'reload' // Changed from force-cache to reload for better refresh
                                     }}
                                     style={styles.avatar}
                                     onError={handleImageError}
@@ -522,7 +511,7 @@ export default function ProfileScreen() {
                     <Text style={styles.memberSince}>Member since {memberSince}</Text>
                 </Animated.View>
 
-                {/* Stats Section */}
+                {/* Rest of your existing component JSX... */}
                 <Animated.View
                     style={[
                         styles.statsSection,
@@ -548,7 +537,6 @@ export default function ProfileScreen() {
                     </View>
                 </Animated.View>
 
-                {/* Profile Details */}
                 <Animated.View
                     style={[
                         styles.detailsSection,
@@ -593,7 +581,6 @@ export default function ProfileScreen() {
                     </View>
                 </Animated.View>
 
-                {/* Action Buttons */}
                 <Animated.View
                     style={[
                         styles.actionsSection,

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 
 let MapView: any;
@@ -280,24 +280,6 @@ const darkMapStyle = [
 ];
 
 const MapViewWrapper = () => {
-    const mapRef = useRef(null);
-
-    useEffect(() => {
-        if (Platform.OS !== 'web' && mapRef.current) {
-            // Simple zoom in after map loads
-            const timer = setTimeout(() => {
-                mapRef.current.animateToRegion({
-                    latitude: 45.2671,
-                    longitude: 19.8240,
-                    latitudeDelta: 0.07,
-                    longitudeDelta: 0.07,
-                }, 2000);
-            }, 1000);
-
-            return () => clearTimeout(timer);
-        }
-    }, []);
-
     if (Platform.OS === 'web') {
         return (
             <View style={styles.webFallback}>
@@ -309,13 +291,12 @@ const MapViewWrapper = () => {
     return (
         <View style={styles.container}>
             <MapView
-                ref={mapRef}
                 style={styles.map}
                 initialRegion={{
                     latitude: 45.2671,
                     longitude: 19.8335,
-                    latitudeDelta: 0.02,
-                    longitudeDelta: 0.02,
+                    latitudeDelta: 0.005,
+                    longitudeDelta: 0.005,
                 }}
                 customMapStyle={darkMapStyle}
                 showsUserLocation={true}
@@ -338,6 +319,7 @@ const styles = StyleSheet.create({
     },
     map: {
         flex: 1,
+        backgroundColor: '#000000', // Ensure background is black
     },
     webFallback: {
         flex: 1,

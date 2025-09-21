@@ -375,24 +375,7 @@ export default function OnboardingScreen() {
                 ))}
             </Animated.View>
 
-            {/* Skip Button */}
-            <Animated.View
-                style={[
-                    styles.skipContainer,
-                    {
-                        top: Platform.OS === 'ios' ? 60 : 40,
-                        opacity: skipOpacity
-                    }
-                ]}
-            >
-                <TouchableOpacity
-                    style={styles.skipButton}
-                    onPress={handleSkip}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.skipText}>Skip</Text>
-                </TouchableOpacity>
-            </Animated.View>
+
 
             {/* Content Section */}
             <Animated.View
