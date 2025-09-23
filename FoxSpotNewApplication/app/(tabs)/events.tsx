@@ -36,7 +36,8 @@ export default function EventsScreen() {
         "Tech",
         "Business",
     ];
-
+    const defaultImage =
+        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=60";
     // fetch events from Supabase
     const fetchEvents = async () => {
         const { data, error } = await supabase
@@ -94,7 +95,7 @@ export default function EventsScreen() {
                 <TouchableOpacity activeOpacity={0.9}>
                     <ImageBackground
                         source={{
-                            uri: event.image_url || "https://via.placeholder.com/400",
+                            uri: event.image_url || defaultImage,
                         }}
                         style={styles.eventImage}
                         imageStyle={styles.eventImageStyle}
