@@ -1,50 +1,58 @@
-# Welcome to your Expo app 👋
+# FoxSpot 🦊
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern React Native event discovery and creation app that helps users find and create amazing local events in their community.
 
-## Get started
+## Features
 
-1. Install dependencies
+### 🗺️ Interactive Map View
+- Beautiful circular markers showing event locations
+- Real-time event positioning with custom map styling
+- Smooth animations and interactive markers
+- Category-based color coding for easy identification
 
-   ```bash
-   npm install
-   ```
+### 📅 Event Discovery
+- Browse events by categories (Music, Art, Food, Sports, Tech, Business)
+- Search functionality to find specific events
+- Filter by event type and location
+- Clean, modern card-based event display
 
-2. Start the app
+### ✨ Event Creation
+- Intuitive event creation form with live preview
+- Automatic geocoding - just enter address and city
+- Image upload for event thumbnails
+- Date and time picker integration
+- Category selection with visual indicators
 
-   ```bash
-   npx expo start
-   ```
+### 👤 User Profiles
+- Personal profile with event statistics
+- Track events joined, created, and saved
+- Profile customization options
+- User authentication system
 
-In the output, you'll find options to open the app in a
+### 🎯 Smart Location Features
+- Automatic coordinate detection when creating events
+- Support for Serbian cities with address suggestions
+- Current location detection
+- Offline-friendly map caching
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Screenshots
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| Create Event | Event Discovery | Map View | Profile |
+|-------------|-----------------|----------|---------|
+| ![Create Event](screenshot1.png) | ![Event Discovery](screenshot2.png) | ![Map View](screenshot3.png) | ![Profile](screenshot4.png) |
 
-## Get a fresh project
+## Tech Stack
 
-When you're ready, run:
+- **Frontend**: React Native with Expo
+- **Maps**: React Native Maps with custom styling
+- **Backend**: Supabase (Authentication, Database, Storage)
+- **Navigation**: Expo Router
+- **UI Components**: 
+  - React Native Elements
+  - Expo Vector Icons
+  - Linear Gradient
+  - Animated API
+- **Location Services**: Expo Location
+- **Image Handling**: Expo Image Picker
+- **Date/Time**: React Native Community DateTimePicker
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
