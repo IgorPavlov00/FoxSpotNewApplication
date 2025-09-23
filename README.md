@@ -39,8 +39,7 @@ A modern React Native event discovery and creation app that helps users find and
 
 | Welcome | Create Event | Event Discovery | Map View | Profile |
 |---------|-------------|-----------------|----------|---------|
-| ![Welcome](![WhatsApp Image 2025-09-23 at 22 15 05_9ca2b561](https://github.com/user-attachments/assets/67955200-31b4-425f-a4e0-11dd518c4631)
-) | ![Create Event](https://github.com/user-attachments/assets/734df58f-6a60-4bd5-8460-db01981abde2) | ![Event Discovery](https://github.com/user-attachments/assets/cd1bbc4c-0e84-44ee-bd85-ca150d94a2f7) | ![Map View](https://github.com/user-attachments/assets/6e468bf5-a5d0-4dca-a2e4-fad8d1a02a43) | ![Profile](https://github.com/user-attachments/assets/192554c6-0347-4b34-b12f-84bf93523361) |
+| ![Welcome](https://github.com/user-attachments/assets/67955200-31b4-425f-a4e0-11dd518c4631) | ![Create Event](https://github.com/user-attachments/assets/734df58f-6a60-4bd5-8460-db01981abde2) | ![Event Discovery](https://github.com/user-attachments/assets/cd1bbc4c-0e84-44ee-bd85-ca150d94a2f7) | ![Map View](https://github.com/user-attachments/assets/6e468bf5-a5d0-4dca-a2e4-fad8d1a02a43) | ![Profile](https://github.com/user-attachments/assets/192554c6-0347-4b34-b12f-84bf93523361) |
 
 ## Tech Stack
 
