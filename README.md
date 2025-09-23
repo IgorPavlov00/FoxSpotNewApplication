@@ -39,8 +39,7 @@ A modern React Native event discovery and creation app that helps users find and
 
 | Welcome | Create Event | Event Discovery | Map View | Profile |
 |---------|-------------|-----------------|----------|---------|
-| ![Welcome](https://github.com/user-attachments/assets/welcome-screen-url) | ![Create Event](https://github.com/user-attachments/assets/734df58f-6a60-4bd5-8460-db01981abde2) | ![Event Discovery](https://github.com/user-attachments/assets/cd1bbc4c-0e84-44ee-bd85-ca150d94a2f7) | ![Map View](https://github.com/user-attachments/assets/6e468bf5-a5d0-4dca-a2e4-fad8d1a02a43) | ![Profile](https://github.com/user-attachments/assets/192554c6-0347-4b34-b12f-84bf93523361) |------|---------|
-| ![Create Event](https://github.com/user-attachments/assets/734df58f-6a60-4bd5-8460-db01981abde2) | ![Event Discovery](https://github.com/user-attachments/assets/cd1bbc4c-0e84-44ee-bd85-ca150d94a2f7) | ![Map View](https://github.com/user-attachments/assets/6e468bf5-a5d0-4dca-a2e4-fad8d1a02a43) | ![Profile](https://github.com/user-attachments/assets/192554c6-0347-4b34-b12f-84bf93523361) |
+| ![Welcome](https://github.com/user-attachments/assets/welcome-screen-url) | ![Create Event](https://github.com/user-attachments/assets/734df58f-6a60-4bd5-8460-db01981abde2) | ![Event Discovery](https://github.com/user-attachments/assets/cd1bbc4c-0e84-44ee-bd85-ca150d94a2f7) | ![Map View](https://github.com/user-attachments/assets/6e468bf5-a5d0-4dca-a2e4-fad8d1a02a43) | ![Profile](https://github.com/user-attachments/assets/192554c6-0347-4b34-b12f-84bf93523361) |
 
 ## Tech Stack
 
@@ -89,6 +88,113 @@ A modern React Native event discovery and creation app that helps users find and
    EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
+4. **Database Setup**
+   
+   Create the following tables in your Supabase database:
+
+   ```sql
+   -- Events table
+   CREATE TABLE events (
+     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+     title TEXT NOT NULL,
+     description TEXT,
+     location TEXT NOT NULL,
+     address TEXT NOT NULL,
+     lat DECIMAL NOT NULL,
+     lng DECIMAL NOT NULL,
+     type TEXT NOT NULL,
+     date TIMESTAMP WITH TIME ZONE NOT NULL,
+     image_url TEXT,
+     created_by UUID REFERENCES auth.users(id),
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+   );
+
+   -- Enable Row Level Security
+   ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+
+   -- Create policies for events
+   CREATE POLICY "Events are viewable by everyone" ON events
+     FOR SELECT USING (true);
+
+   CREATE POLICY "Users can create events" ON events
+     FOR INSERT WITH CHECK (auth.uid() = created_by);
+
+   CREATE POLICY "Users can update own events" ON events
+     FOR UPDATE USING (auth.uid() = created_by);
+   ```
+
+5. **Start the development server**
+   ```bash
+   npx expo start
+   ```
+
+6. **Run on device/simulator**
+   - Install Expo Go app on your mobile device
+   - Scan the QR code from the terminal
+   - Or press `a` for Android emulator, `i` for iOS simulator
+
+## Key Components
+
+### MapViewWrapper
+- Custom map implementation with circular markers
+- Real-time event loading from Supabase
+- Smooth animations and user interactions
+- Category-based styling
+
+### AddEventScreen
+- Comprehensive event creation form
+- Automatic geocoding integration
+- Live preview functionality
+- Image upload capabilities
+
+### Event Discovery
+- Search and filter functionality
+- Category-based browsing
+- Clean card-based UI
+- Real-time event updates
+
+## Configuration
+
+### Map Styling
+The app uses custom dark map styling optimized for event visibility. Colors and themes can be modified in the `darkMapStyle` configuration.
+
+### Categories
+Event categories are easily configurable:
+```javascript
+const categories = ["Music", "Art", "Food", "Sports", "Tech", "Business"];
+```
+
+### Geocoding
+Uses OpenStreetMap Nominatim API for address geocoding, restricted to Serbia:
+- Automatic coordinate detection
+- Address suggestions
+- Fallback to manual coordinate entry
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support, email support@foxspot.app or create an issue in this repository.
+
+## Roadmap
+
+- [ ] Push notifications for event reminders
+- [ ] Social features (friends, event sharing)
+- [ ] Event check-in with QR codes
+- [ ] Advanced filtering (price, distance, time)
+- [ ] Event recommendations based on user preferences
+- [ ] Multi-language support
+- [ ] Dark/light theme toggle
 
 ---
 
