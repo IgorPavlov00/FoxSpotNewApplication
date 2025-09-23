@@ -39,7 +39,11 @@ A modern React Native event discovery and creation app that helps users find and
 
 | Create Event | Event Discovery | Map View | Profile |
 |-------------|-----------------|----------|---------|
-| ![Create Event](screenshot1.png) | ![Event Discovery](screenshot2.png) | ![Map View](screenshot3.png) | ![Profile](screenshot4.png) |
+| ![Create Event](![WhatsApp Image 2025-09-23 at 22 13 28_d13ab695](https://github.com/user-attachments/assets/734df58f-6a60-4bd5-8460-db01981abde2)
+) | ![Event Discovery](![WhatsApp Image 2025-09-23 at 22 13 28_dd956f86](https://github.com/user-attachments/assets/cd1bbc4c-0e84-44ee-bd85-ca150d94a2f7)
+) | ![Map View](![WhatsApp Image 2025-09-23 at 22 13 28_fcf42fde](https://github.com/user-attachments/assets/6e468bf5-a5d0-4dca-a2e4-fad8d1a02a43)
+) | ![Profile](![WhatsApp Image 2025-09-23 at 22 13 28_bd363316](https://github.com/user-attachments/assets/192554c6-0347-4b34-b12f-84bf93523361)
+) |
 
 ## Tech Stack
 
