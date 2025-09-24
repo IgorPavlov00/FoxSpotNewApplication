@@ -1,5 +1,14 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
-import { Platform, StyleSheet, Text, View, Image, Animated } from "react-native";
+import React, { useState, useCallback, useRef } from "react";
+import {
+    Platform,
+    StyleSheet,
+    Text,
+    View,
+    Image,
+    Animated,
+    TouchableOpacity,
+    Modal,
+} from "react-native";
 import { supabase } from "@/lib/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,11 +20,7 @@ if (Platform.OS !== "web") {
 }
 
 const darkMapStyle = [
-    {
-        featureType: "all",
-        elementType: "labels",
-        stylers: [{ visibility: "on" }],
-    },
+    { featureType: "all", elementType: "labels", stylers: [{ visibility: "on" }] },
     {
         featureType: "all",
         elementType: "labels.text.fill",
@@ -26,11 +31,7 @@ const darkMapStyle = [
         elementType: "labels.text.stroke",
         stylers: [{ visibility: "on" }, { color: "#000000" }, { lightness: 16 }],
     },
-    {
-        featureType: "all",
-        elementType: "labels.icon",
-        stylers: [{ visibility: "off" }],
-    },
+    { featureType: "all", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
     {
         featureType: "administrative",
         elementType: "geometry.fill",
@@ -66,11 +67,7 @@ const darkMapStyle = [
         elementType: "geometry",
         stylers: [{ color: "#000000" }, { lightness: 21 }, { visibility: "on" }],
     },
-    {
-        featureType: "poi.business",
-        elementType: "geometry",
-        stylers: [{ visibility: "on" }],
-    },
+    { featureType: "poi.business", elementType: "geometry", stylers: [{ visibility: "on" }] },
     {
         featureType: "road.highway",
         elementType: "geometry.fill",
@@ -121,49 +118,40 @@ const darkMapStyle = [
         elementType: "geometry",
         stylers: [{ color: "#000000" }, { lightness: 18 }],
     },
-    {
-        featureType: "road.local",
-        elementType: "labels.text.fill",
-        stylers: [{ color: "#999999" }],
-    },
+    { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#999999" }] },
     {
         featureType: "transit",
         elementType: "geometry",
         stylers: [{ color: "#000000" }, { lightness: 19 }],
     },
-    {
-        featureType: "water",
-        elementType: "geometry",
-        stylers: [{ color: "#000000" }, { lightness: 17 }],
-    },
+    { featureType: "water", elementType: "geometry", stylers: [{ color: "#000000" }, { lightness: 17 }] },
 ];
-
-const getCategoryIcon = (type) => {
-    const icons = {
-        Music: "musical-notes",
-        Art: "color-palette",
-        Food: "restaurant",
-        Sports: "fitness",
-        Tech: "laptop",
-        Business: "briefcase",
+const normalizeCategory = (cat: string) => {
+    const map: Record<string, string> = {
+        sports: "sport",
+        sport: "sport",
+        party: "party",
+        culture: "culture",
+        meeting: "meeting",
+        workshop: "workshop",
+        food: "food",
+        music: "party", // if you want music events to show up under "Party"
+        art: "culture",
+        business: "meeting",
+        tech: "workshop",
     };
-    return icons[type] || "calendar";
+    return map[cat.toLowerCase()] || cat.toLowerCase();
 };
 
-const getCategoryColor = (type) => {
-    const colors = {
-        Music: "#ff6b00",
-        Art: "#9c27b0",
-        Food: "#f44336",
-        Sports: "#4caf50",
-        Tech: "#2196f3",
-        Business: "#ff9800",
-    };
-    return colors[type] || "#ff6b00";
-};
-
-const MapViewWrapper = () => {
+const MapViewWrapper = ({
+                            selectedCategory,
+                            searchQuery,
+                        }: {
+    selectedCategory: string | null;
+    searchQuery: string;
+}) => {
     const [events, setEvents] = useState<any[]>([]);
+    const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
     const markerAnimations = useRef<any[]>([]);
 
     const defaultImage =
@@ -172,7 +160,7 @@ const MapViewWrapper = () => {
     const fetchEvents = async () => {
         const { data, error } = await supabase
             .from("events")
-            .select("id, title, address, location, lat, lng, type, image_url");
+            .select("id, title, address, location, lat, lng, type, image_url, description");
 
         if (error) {
             console.error("Error fetching events:", error);
@@ -193,7 +181,6 @@ const MapViewWrapper = () => {
 
         setEvents(validEvents);
 
-        // Initialize animations for each event
         markerAnimations.current = validEvents.map(() => new Animated.Value(0));
         markerAnimations.current.forEach((anim) => {
             Animated.timing(anim, {
@@ -210,6 +197,20 @@ const MapViewWrapper = () => {
         }, [])
     );
 
+    // ✅ Apply category + search filter
+    const filteredEvents = events.filter((event) => {
+        const matchesCategory =
+            !selectedCategory ||
+            normalizeCategory(event.type) === normalizeCategory(selectedCategory);
+        const matchesSearch =
+            !searchQuery ||
+            event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            event.address.toLowerCase().includes(searchQuery.toLowerCase());
+
+        return matchesCategory && matchesSearch;
+    });
+
+
     if (Platform.OS === "web") {
         return (
             <View style={styles.webFallback}>
@@ -223,24 +224,23 @@ const MapViewWrapper = () => {
             <MapView
                 style={styles.map}
                 initialRegion={{
-                    latitude: 45.2671, // Novi Sad center
+                    latitude: 45.2671,
                     longitude: 19.8335,
-                    latitudeDelta: 0.02, // Street-level zoom
+                    latitudeDelta: 0.02,
                     longitudeDelta: 0.02,
                 }}
                 customMapStyle={darkMapStyle}
                 showsUserLocation
                 showsMyLocationButton
             >
-                {events.map((event, index) => (
+                {filteredEvents.map((event, index) => (
                     <Marker
                         key={event.id}
                         coordinate={{
                             latitude: Number(event.lat),
                             longitude: Number(event.lng),
                         }}
-                        title={event.title}
-                        description={`${event.address || ""}, ${event.location || ""}`}
+                        onPress={() => setSelectedEvent(event)}
                     >
                         <Animated.View
                             style={[
@@ -248,10 +248,11 @@ const MapViewWrapper = () => {
                                 {
                                     transform: [
                                         {
-                                            scale: markerAnimations.current[index]?.interpolate({
-                                                inputRange: [0, 1],
-                                                outputRange: [0.8, 1],
-                                            }) || 1,
+                                            scale:
+                                                markerAnimations.current[index]?.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: [0.8, 1],
+                                                }) || 1,
                                         },
                                     ],
                                 },
@@ -262,14 +263,57 @@ const MapViewWrapper = () => {
                                     source={{ uri: event.image_url || defaultImage }}
                                     style={styles.markerImage}
                                     resizeMode="cover"
-                                    onError={(e) => console.error("Image load error:", e.nativeEvent.error)}
                                 />
-
                             </View>
                         </Animated.View>
                     </Marker>
                 ))}
             </MapView>
+
+            {/* Event Card Modal */}
+            {selectedEvent && (
+                <Modal
+                    visible={true}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setSelectedEvent(null)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.eventCard}>
+                            <Image
+                                source={{ uri: selectedEvent.image_url || defaultImage }}
+                                style={styles.eventImage}
+                            />
+
+                            <View style={styles.eventContent}>
+                                <Text style={styles.eventCategory}>
+                                    {selectedEvent.type?.toUpperCase()}
+                                </Text>
+                                <Text style={styles.eventTitle}>{selectedEvent.title}</Text>
+                                <Text style={styles.eventLocation}>
+                                    📍 {selectedEvent.address}, {selectedEvent.location}
+                                </Text>
+                                <Text style={styles.eventDate}>🗓 May 29 • 10:00 PM</Text>
+                                <Text style={styles.aboutText}>
+                                    {selectedEvent.description || "No description provided."}
+                                </Text>
+
+                                <TouchableOpacity style={styles.bookButton}>
+                                    <Text style={styles.bookButtonText}>Book Now</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Close button */}
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setSelectedEvent(null)}
+                            >
+                                <Ionicons name="close" size={22} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+            )}
         </View>
     );
 };
@@ -277,53 +321,55 @@ const MapViewWrapper = () => {
 export default MapViewWrapper;
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#000",
-    },
-    map: {
-        flex: 1,
-        backgroundColor: "#000",
-    },
-    webFallback: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "#000",
-    },
-    webText: {
-        color: "#888",
-        fontSize: 16,
-    },
-    customMarker: {
-        alignItems: "center",
-        justifyContent: "center",
-    },
+    container: { flex: 1, backgroundColor: "#000" },
+    map: { flex: 1, backgroundColor: "#000" },
+    webFallback: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000" },
+    webText: { color: "#888", fontSize: 16 },
+    customMarker: { alignItems: "center", justifyContent: "center" },
     markerImageContainer: {
         width: 33,
         height: 33,
         borderRadius: 24,
         overflow: "hidden",
         backgroundColor: "#1a1a1a",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.4,
-        shadowRadius: 5,
-        elevation: 6,
         borderWidth: 2,
         borderColor: "#fff",
     },
-    markerImage: {
-        width: 28,
-        height: 28,
-        borderRadius: 24,
+    markerImage: { width: 28, height: 28, borderRadius: 24 },
+    modalOverlay: { flex: 1, justifyContent: "flex-end" },
+    eventCard: {
+        backgroundColor: "#1a1a1a",
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        overflow: "hidden",
+        maxHeight: "75%",
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.6,
+        shadowRadius: 8,
+        elevation: 15,
+        paddingBottom: 20,
     },
-    iconOverlay: {
+    eventImage: { width: "100%", height: 200 },
+    eventContent: { padding: 15 },
+    eventCategory: { color: "#ff6b00", fontWeight: "700", marginBottom: 6, fontSize: 13 },
+    eventTitle: { fontSize: 20, fontWeight: "bold", color: "#fff" },
+    eventLocation: { fontSize: 14, color: "#bbb", marginTop: 6 },
+    eventDate: { fontSize: 14, color: "#bbb", marginTop: 4 },
+    aboutText: { marginTop: 12, color: "#ccc", fontSize: 14, lineHeight: 20 },
+    bookButton: {
+        marginTop: 18,
+        backgroundColor: "#ff6b00",
+        paddingVertical: 14,
+        borderRadius: 25,
+        alignItems: "center",
+    },
+    bookButtonText: { color: "#fff", fontSize: 16, fontWeight: "700", textTransform: "uppercase" },
+    closeButton: {
         position: "absolute",
-        bottom: 3,
-        right: 3,
-        borderRadius: 10,
-        padding: 3,
-        backgroundColor: "rgba(255, 107, 0, 0.9)",
+        top: 12,
+        right: 12,
+        backgroundColor: "rgba(0,0,0,0.6)",
+        borderRadius: 20,
+        padding: 8,
     },
 });

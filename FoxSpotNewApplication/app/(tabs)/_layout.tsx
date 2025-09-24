@@ -226,7 +226,6 @@ const styles = StyleSheet.create({
     activeBubble: {
         position: "absolute",
         height: 50,
-        backgroundColor: "rgba(255, 107, 0, 0.2)",
         borderRadius: 25,
         top: 8,
         zIndex: 0,
